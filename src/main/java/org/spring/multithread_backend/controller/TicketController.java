@@ -27,17 +27,23 @@ public class TicketController {
     @PostMapping("/vendor/add")
     public ResponseEntity<?> addTickets(
             @RequestParam String eventId,
-            @RequestParam Float price
-            ) {
-        int totalTickets = configuration.getTotalTickets();
+            @RequestParam Float price,
+            @RequestParam Integer qty
+    ) {
+        int totalTickets = configuration.getTotalTickets(); // Maximum allowed tickets
         int ticketReleaseRate = configuration.getTicketReleaseRate();
 
         if (ticketReleaseRate <= 0) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Ticket release rate must be greater than 0.");
         }
 
+        // Adjust quantity if it exceeds the maximum allowed tickets
+        if (qty > totalTickets) {
+            qty = totalTickets;
+        }
+
         List<Ticket> tickets = new LinkedList<>();
-        for (int i = 0; i < totalTickets; i++) {
+        for (int i = 0; i < qty; i++) {
             Ticket ticket = new Ticket();
             ticket.setId(UUID.randomUUID().toString());
             ticket.setEventId(eventId);
@@ -47,7 +53,7 @@ public class TicketController {
         }
 
         new Thread(new Vendor(ticketPool, tickets, ticketReleaseRate)).start();
-        return ResponseEntity.ok("Vendor is adding " + totalTickets + " tickets for event: " + eventId + " at a release rate of " + ticketReleaseRate + " tickets/second.");
+        return ResponseEntity.ok("Vendor is adding " + qty + " tickets for event: " + eventId + " at a release rate of " + ticketReleaseRate + " tickets/second.");
     }
 
     @PostMapping("/customer/purchase")
@@ -75,9 +81,9 @@ public class TicketController {
 
     @GetMapping("/all")
     public ResponseEntity<?> getAllTickets() {
-        Map<String, Integer> availableTicketsByEvent = ticketPool.getAvailableTicketsByEvent();
+        Map<String, Map<String, Object>> availableTicketsByEvent = ticketPool.getAvailableTicketsByEvent();
 
-        // Convert to a simple JSON-like structure
+        // Return the structured data
         return ResponseEntity.ok(availableTicketsByEvent);
     }
 }
