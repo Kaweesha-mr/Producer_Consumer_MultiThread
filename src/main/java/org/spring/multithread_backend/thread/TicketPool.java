@@ -3,10 +3,11 @@ package org.spring.multithread_backend.thread;
 import org.spring.multithread_backend.model.Ticket;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
+
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
@@ -48,6 +49,16 @@ public class TicketPool {
         }
 
         return purchasedTickets;
+    }
+
+    // Get available tickets grouped by eventId
+    public synchronized Map<String, Integer> getAvailableTicketsByEvent() {
+        return tickets.stream()
+                .filter(ticket -> !ticket.isSold()) // Only consider tickets that are not sold
+                .collect(Collectors.groupingBy(
+                        Ticket::getEventId, // Group by eventId
+                        Collectors.reducing(0, e -> 1, Integer::sum) // Count tickets
+                ));
     }
 
     // Get all available tickets (not sold)

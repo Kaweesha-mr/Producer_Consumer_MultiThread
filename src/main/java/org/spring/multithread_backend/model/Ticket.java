@@ -12,6 +12,8 @@ public class Ticket {
 
     @Id
     private String id;
+
     private String eventId;
     private boolean sold;
+    private float price;
 }

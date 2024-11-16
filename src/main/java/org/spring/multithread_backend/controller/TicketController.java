@@ -1,5 +1,7 @@
 package org.spring.multithread_backend.controller;
 
+import org.spring.multithread_backend.configuration.Configuration;
+import org.spring.multithread_backend.configuration.ConfigurationManager;
 import org.spring.multithread_backend.model.Ticket;
 import org.spring.multithread_backend.thread.Customer;
 import org.spring.multithread_backend.thread.TicketPool;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -19,11 +22,16 @@ public class TicketController {
     @Autowired
     private TicketPool ticketPool;
 
+    private final Configuration configuration = ConfigurationManager.loadConfiguration();
+
     @PostMapping("/vendor/add")
     public ResponseEntity<?> addTickets(
             @RequestParam String eventId,
-            @RequestParam int totalTickets,
-            @RequestParam int ticketReleaseRate) {
+            @RequestParam Float price
+            ) {
+        int totalTickets = configuration.getTotalTickets();
+        int ticketReleaseRate = configuration.getTicketReleaseRate();
+
         if (ticketReleaseRate <= 0) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Ticket release rate must be greater than 0.");
         }
@@ -33,6 +41,7 @@ public class TicketController {
             Ticket ticket = new Ticket();
             ticket.setId(UUID.randomUUID().toString());
             ticket.setEventId(eventId);
+            ticket.setPrice(price);
             ticket.setSold(false);
             tickets.add(ticket);
         }
@@ -44,19 +53,31 @@ public class TicketController {
     @PostMapping("/customer/purchase")
     public ResponseEntity<?> purchaseTickets(
             @RequestParam String eventId,
-            @RequestParam int quantity,
-            @RequestParam int customerRetrievalRate) {
+            @RequestParam int quantity) {
+
+        int customerRetrievalRate = configuration.getCustomerRetrievalRate();
+        int maxTicketCapacity = configuration.getMaxTicketCapacity();
+
         if (customerRetrievalRate <= 0) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Customer retrieval rate must be greater than 0.");
         }
 
-        new Thread(new Customer(ticketPool, eventId, quantity, customerRetrievalRate)).start();
+        new Thread(new Customer(ticketPool, eventId, quantity, customerRetrievalRate,maxTicketCapacity)).start();
         return ResponseEntity.ok("Customer is attempting to purchase " + quantity + " tickets for event: " + eventId + " at a retrieval rate of " + customerRetrievalRate + " tickets/second.");
     }
+
 
     @GetMapping("/status/{eventId}")
     public ResponseEntity<?> getTicketStatus(@PathVariable String eventId) {
         int availableTickets = ticketPool.getPoolSize(eventId);
         return ResponseEntity.ok("Available tickets for event " + eventId + ": " + availableTickets);
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllTickets() {
+        Map<String, Integer> availableTicketsByEvent = ticketPool.getAvailableTicketsByEvent();
+
+        // Convert to a simple JSON-like structure
+        return ResponseEntity.ok(availableTicketsByEvent);
     }
 }
