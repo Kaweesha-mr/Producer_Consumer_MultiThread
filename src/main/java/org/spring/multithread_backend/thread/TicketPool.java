@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class TicketPool {
@@ -47,6 +48,13 @@ public class TicketPool {
         }
 
         return purchasedTickets;
+    }
+
+    // Get all available tickets (not sold)
+    public synchronized List<Ticket> getAllAvailableTickets() {
+        return tickets.stream()
+                .filter(ticket -> !ticket.isSold()) // Filter tickets that are not sold
+                .collect(Collectors.toList());
     }
 
 }
