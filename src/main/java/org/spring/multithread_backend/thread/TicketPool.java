@@ -4,10 +4,7 @@ import org.spring.multithread_backend.model.Ticket;
 import org.springframework.stereotype.Component;
 
 
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
@@ -51,13 +48,20 @@ public class TicketPool {
         return purchasedTickets;
     }
 
-    // Get available tickets grouped by eventId
-    public synchronized Map<String, Integer> getAvailableTicketsByEvent() {
+    public synchronized Map<String, Map<String, Object>> getAvailableTicketsByEvent() {
         return tickets.stream()
-                .filter(ticket -> !ticket.isSold()) // Only consider tickets that are not sold
+                .filter(ticket -> !ticket.isSold()) // Only include tickets that are not sold
                 .collect(Collectors.groupingBy(
                         Ticket::getEventId, // Group by eventId
-                        Collectors.reducing(0, e -> 1, Integer::sum) // Count tickets
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                ticketList -> {
+                                    Map<String, Object> details = new HashMap<>();
+                                    details.put("price", ticketList.get(0).getPrice()); // Assuming all tickets for an event have the same price
+                                    details.put("availableTickets", ticketList.size()); // Count the tickets
+                                    return details;
+                                }
+                        )
                 ));
     }
 
