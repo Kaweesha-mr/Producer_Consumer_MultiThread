@@ -16,12 +16,18 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/tickets")
 public class TicketController {
-
     @Autowired
     private TicketPool ticketPool;
 
     @PostMapping("/vendor/add")
-    public ResponseEntity<?> addTickets(@RequestParam String eventId, @RequestParam int totalTickets) {
+    public ResponseEntity<?> addTickets(
+            @RequestParam String eventId,
+            @RequestParam int totalTickets,
+            @RequestParam int ticketReleaseRate) {
+        if (ticketReleaseRate <= 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Ticket release rate must be greater than 0.");
+        }
+
         List<Ticket> tickets = new LinkedList<>();
         for (int i = 0; i < totalTickets; i++) {
             Ticket ticket = new Ticket();
@@ -31,14 +37,21 @@ public class TicketController {
             tickets.add(ticket);
         }
 
-        new Thread(new Vendor(ticketPool, tickets)).start();
-        return ResponseEntity.ok("Vendor is adding " + totalTickets + " tickets for event: " + eventId);
+        new Thread(new Vendor(ticketPool, tickets, ticketReleaseRate)).start();
+        return ResponseEntity.ok("Vendor is adding " + totalTickets + " tickets for event: " + eventId + " at a release rate of " + ticketReleaseRate + " tickets/second.");
     }
 
     @PostMapping("/customer/purchase")
-    public ResponseEntity<?> purchaseTickets(@RequestParam String eventId, @RequestParam int quantity) {
-        new Thread(new Customer(ticketPool, eventId, quantity)).start();
-        return ResponseEntity.ok("Customer is attempting to purchase " + quantity + " tickets for event: " + eventId);
+    public ResponseEntity<?> purchaseTickets(
+            @RequestParam String eventId,
+            @RequestParam int quantity,
+            @RequestParam int customerRetrievalRate) {
+        if (customerRetrievalRate <= 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Customer retrieval rate must be greater than 0.");
+        }
+
+        new Thread(new Customer(ticketPool, eventId, quantity, customerRetrievalRate)).start();
+        return ResponseEntity.ok("Customer is attempting to purchase " + quantity + " tickets for event: " + eventId + " at a retrieval rate of " + customerRetrievalRate + " tickets/second.");
     }
 
     @GetMapping("/status/{eventId}")
@@ -46,5 +59,4 @@ public class TicketController {
         int availableTickets = ticketPool.getPoolSize(eventId);
         return ResponseEntity.ok("Available tickets for event " + eventId + ": " + availableTickets);
     }
-
 }
