@@ -1,17 +1,21 @@
 package org.spring.multithread_backend.thread;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spring.multithread_backend.model.Ticket;
 
 import java.util.List;
 
 public class Customer implements Runnable {
+    private static final Logger logger = LoggerFactory.getLogger(Customer.class);
+
     private final TicketPool ticketPool;
     private final String eventId;
     private final int quantity; // Total tickets to purchase
     private final int customerRetrievalRate; // Tickets retrieved per second
     private final int maxQty;
 
-    public Customer(TicketPool ticketPool, String eventId, int quantity, int customerRetrievalRate,int maxQty) {
+    public Customer(TicketPool ticketPool, String eventId, int quantity, int customerRetrievalRate, int maxQty) {
         if (ticketPool == null) {
             throw new IllegalArgumentException("TicketPool cannot be null");
         }
@@ -28,6 +32,7 @@ public class Customer implements Runnable {
 
         // Ensure that the quantity does not exceed the customer's maximum allowed quantity
         int effectiveQuantity = Math.min(quantity, maxQty);
+        logger.info("Customer thread started for event: {}, requesting {} tickets (max allowed: {}).", eventId, effectiveQuantity, maxQty);
 
         while (ticketsRetrieved < effectiveQuantity) {
             try {
@@ -36,11 +41,11 @@ public class Customer implements Runnable {
                 // Retrieve tickets in batches
                 synchronized (ticketPool) {
                     if (!ticketPool.areTicketsAvailable(eventId, batchSize)) {
-                        System.out.println("Not enough tickets available for event: " + eventId);
+                        logger.warn("Not enough tickets available for event: {}", eventId);
                         break;
                     }
                     List<Ticket> batch = ticketPool.removeTickets(eventId, batchSize);
-                    batch.forEach(ticket -> System.out.println("Customer purchased ticket: " + ticket.getId()));
+                    batch.forEach(ticket -> logger.info("Customer purchased ticket: {}", ticket.getId()));
                 }
 
                 ticketsRetrieved += batchSize;
@@ -48,16 +53,18 @@ public class Customer implements Runnable {
                 // Wait for 1 second between retrievals
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
+                logger.error("Customer thread was interrupted.", e);
                 Thread.currentThread().interrupt();
                 break;
             }
         }
 
         if (ticketsRetrieved < effectiveQuantity) {
-            System.out.println("Customer could not retrieve all requested tickets for event: " + eventId);
+            logger.warn("Customer could not retrieve all requested tickets for event: {}. Retrieved: {} of {}", eventId, ticketsRetrieved, effectiveQuantity);
         } else {
-            System.out.println("Customer successfully retrieved all requested tickets for event: " + eventId);
+            logger.info("Customer successfully retrieved all requested tickets for event: {}.", eventId);
         }
-    }
 
+        logger.info("Customer thread for event: {} completed.", eventId);
+    }
 }
