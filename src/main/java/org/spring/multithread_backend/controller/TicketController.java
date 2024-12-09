@@ -86,4 +86,6 @@ public class TicketController {
         // Return the structured data
         return ResponseEntity.ok(availableTicketsByEvent);
     }
+
+
 }
